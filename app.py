@@ -73,8 +73,10 @@ def send_message():
     message = request.json.get("message")
 
     if chat_id not in chats:
-        return jsonify({"error": "Chat not found"}), 404
-
+         chats[chat_id] = {
+        "name": "New Chat",
+        "messages": []
+    }
     chats[chat_id]["messages"].append({
         "role": "user",
         "content": message
