@@ -1,3 +1,240 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Gemini AI</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            font-family: Segoe UI;
+            background: #141e30;
+            color: white;
+        }
+
+        .sidebar {
+            width: 260px;
+            background: #111;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .new-btn {
+            width: 100%;
+            padding: 10px;
+            background: #00c6ff;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            margin-bottom: 15px;
+        }
+
+        .chat-item {
+            padding: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-bottom: 8px;
+        }
+
+        .chat-item:hover {
+            background: #222;
+        }
+
+        .chat-item.active {
+            background: #00c6ff33;
+            border-left: 4px solid #00c6ff;
+        }
+
+        .delete-btn {
+            float: right;
+            background: none;
+            border: none;
+            color: red;
+            cursor: pointer;
+        }
+
+        .chat-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .messages {
+            flex: 1;
+            padding: 25px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .message {
+            max-width: 70%;
+            padding: 12px 18px;
+            margin-bottom: 12px;
+            border-radius: 18px;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+        }
+
+        .user {
+            align-self: flex-end;
+            background: linear-gradient(135deg, #00c6ff, #0072ff);
+        }
+
+        .assistant {
+            align-self: flex-start;
+            background: #2b2b2b;
+        }
+
+        .input-box {
+            display: flex;
+            padding: 15px;
+            background: #1c1c1c;
+        }
+
+        .input-box input {
+            flex: 1;
+            padding: 12px;
+            border-radius: 20px;
+            border: none;
+            outline: none;
+        }
+
+        .input-box button {
+            margin-left: 10px;
+            padding: 12px 18px;
+            border: none;
+            border-radius: 20px;
+            background: #00c6ff;
+            color: white;
+            cursor: pointer;
+        }
+
+        .loader span {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            margin-right: 4px;
+            background: white;
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out;
+        }
+
+        .loader span:nth-child(2) {
+            animation-delay: .2s;
+        }
+
+        .loader span:nth-child(3) {
+            animation-delay: .4s;
+        }
+
+        @keyframes bounce {
+            0%, 80%, 100% {
+                transform: scale(0);
+            }
+            40% {
+                transform: scale(1);
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="sidebar">
+    <button class="new-btn" onclick="createChat()">+ New Chat</button>
+    <div id="chatList"></div>
+</div>
+
+<div class="chat-area">
+    <div class="messages" id="messages"></div>
+
+    <div class="input-box">
+        <input id="messageInput" placeholder="Ask anything...">
+        <button onclick="sendMessage()">Send</button>
+    </div>
+</div>
+
+<script>
+let currentChat = null;
+
+async function loadChats() {
+    const res = await fetch("/get_chats");
+    const data = await res.json();
+
+    const list = document.getElementById("chatList");
+    list.innerHTML = "";
+
+    data.chats.forEach(chat => {
+        const div = document.createElement("div");
+        div.classList.add("chat-item");
+
+        if (chat.id == currentChat) {
+            div.classList.add("active");
+        }
+
+        div.innerHTML = `
+            ${chat.name}
+            <button class="delete-btn" onclick="event.stopPropagation(); deleteChat('${chat.id}')">×</button>
+        `;
+
+        div.onclick = () => openChat(chat.id);
+        list.appendChild(div);
+    });
+}
+
+async function createChat() {
+    const res = await fetch("/new_chat", {
+        method: "POST"
+    });
+
+    const data = await res.json();
+    currentChat = data.chat_id;
+
+    document.getElementById("messages").innerHTML = "";
+    loadChats();
+}
+
+async function deleteChat(id) {
+    await fetch("/delete_chat", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            chat_id: id
+        })
+    });
+
+    if (currentChat == id) {
+        currentChat = null;
+        document.getElementById("messages").innerHTML = "";
+    }
+
+    loadChats();
+}
+
+async function openChat(id) {
+    currentChat = id;
+
+    const res = await fetch(`/get_chat_history?chat_id=${id}`);
+    const data = await res.json();
+
+    const messages = document.getElementById("messages");
+    messages.innerHTML = "";
+
+    data.messages.forEach(msg => {
+        const div = document.createElement("div");
+        div.classList.add("message", msg.role);
+        div.innerText = msg.content;
+        messages.appendChild(div);
+    });
+
+    messages.scrollTop = messages.scrollHeight;
+    loadChats();
+}
+
 async function sendMessage() {
     const input = document.getElementById("messageInput");
     const message = input.value.trim();
@@ -11,17 +248,14 @@ async function sendMessage() {
 
     const messages = document.getElementById("messages");
 
-    // User message
     const userMsg = document.createElement("div");
     userMsg.classList.add("message", "user");
     userMsg.innerText = message;
     messages.appendChild(userMsg);
 
-    // Bot message container
     const botMsg = document.createElement("div");
     botMsg.classList.add("message", "assistant");
 
-    // Loader
     const loader = document.createElement("div");
     loader.classList.add("loader");
     loader.innerHTML = "<span></span><span></span><span></span>";
@@ -45,6 +279,7 @@ async function sendMessage() {
         });
 
         if (!res.ok) {
+            botMsg.innerHTML = "";
             botMsg.innerText = "Error getting response";
             return;
         }
@@ -54,11 +289,23 @@ async function sendMessage() {
         botMsg.innerHTML = "";
         botMsg.innerText = data.reply;
 
+        messages.scrollTop = messages.scrollHeight;
+        loadChats();
+
     } catch (error) {
         botMsg.innerHTML = "";
         botMsg.innerText = "Something went wrong";
     }
-
-    messages.scrollTop = messages.scrollHeight;
-    loadChats();
 }
+
+document.getElementById("messageInput").addEventListener("keydown", function(e) {
+    if (e.key === "Enter") {
+        sendMessage();
+    }
+});
+
+loadChats();
+</script>
+
+</body>
+</html>
