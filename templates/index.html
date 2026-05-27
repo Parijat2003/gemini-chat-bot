@@ -1,44 +1,64 @@
-async function sendMessage(){
-    const input=document.getElementById("messageInput");
-    const message=input.value;
-    if(!currentChat) return alert("Create a chat first");
-    if(!message.trim()) return;
+async function sendMessage() {
+    const input = document.getElementById("messageInput");
+    const message = input.value.trim();
 
-    const messages=document.getElementById("messages");
+    if (!currentChat) {
+        alert("Create a chat first");
+        return;
+    }
 
-    const userMsg=document.createElement("div");
-    userMsg.classList.add("message","user");
-    userMsg.innerText=message;
+    if (!message) return;
+
+    const messages = document.getElementById("messages");
+
+    // User message
+    const userMsg = document.createElement("div");
+    userMsg.classList.add("message", "user");
+    userMsg.innerText = message;
     messages.appendChild(userMsg);
 
-    const botMsg=document.createElement("div");
-    botMsg.classList.add("message","assistant");
+    // Bot message container
+    const botMsg = document.createElement("div");
+    botMsg.classList.add("message", "assistant");
 
-    const loader=document.createElement("div");
+    // Loader
+    const loader = document.createElement("div");
     loader.classList.add("loader");
-    loader.innerHTML="<span></span><span></span><span></span>";
-    botMsg.appendChild(loader);
+    loader.innerHTML = "<span></span><span></span><span></span>";
 
+    botMsg.appendChild(loader);
     messages.appendChild(botMsg);
 
-    input.value="";
-    messages.scrollTop=messages.scrollHeight;
+    input.value = "";
+    messages.scrollTop = messages.scrollHeight;
 
-    const res=await fetch("/send_message",{
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({
-            chat_id:currentChat,
-            message:message
-        })
-    });
+    try {
+        const res = await fetch("/send_message", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                chat_id: currentChat,
+                message: message
+            })
+        });
 
-    const data = await res.json();
+        if (!res.ok) {
+            botMsg.innerText = "Error getting response";
+            return;
+        }
 
-    botMsg.innerHTML = "";
-    botMsg.innerText = data.reply;
+        const data = await res.json();
 
-    messages.scrollTop=messages.scrollHeight;
+        botMsg.innerHTML = "";
+        botMsg.innerText = data.reply;
 
+    } catch (error) {
+        botMsg.innerHTML = "";
+        botMsg.innerText = "Something went wrong";
+    }
+
+    messages.scrollTop = messages.scrollHeight;
     loadChats();
 }
